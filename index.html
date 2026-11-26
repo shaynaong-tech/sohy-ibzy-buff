@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-palette="eye">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IBZY</title>
+<meta name="description" content="IBZY — finance interview-prep study app: lessons, quizzes and drills following the Red Book.">
+<meta name="theme-color" content="#0a1f57">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a1f57'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='800' font-size='28' text-anchor='middle' fill='white'%3EIB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<noscript><div style="max-width:560px;margin:60px auto;padding:24px;font-family:sans-serif;text-align:center">IBZY needs JavaScript turned on.</div></noscript>
+
+<!-- sign-in -->
+<div id="auth" hidden>
+  <div class="brand"><div class="seal">IB</div><div><h1>IBZY</h1><small>interview prep, one lesson at a time</small></div></div>
+  <div class="card">
+    <h2 id="auth-title">Sign in</h2>
+    <p class="muted" style="font-size:13px;margin:0 0 6px">Your progress syncs to your account, so you can pick up on any device.</p>
+    <form id="auth-form" autocomplete="on">
+      <div id="auth-name-row" hidden><label class="fld" for="auth-name">Display name</label><input type="text" id="auth-name" autocomplete="nickname" placeholder="What friends will see"></div>
+      <label class="fld" for="auth-email">Email</label><input type="text" inputmode="email" id="auth-email" autocomplete="email" autocapitalize="off" spellcheck="false">
+      <div id="auth-pass-row"><label class="fld" for="auth-pass">Password</label><input type="password" id="auth-pass" autocomplete="current-password" style="width:100%;border:1px solid var(--line);border-radius:var(--radius-s);padding:10px;font:inherit;font-size:16px;background:var(--panel);color:var(--ink)"></div>
+      <button class="btn primary" id="auth-go" type="submit" style="width:100%;margin-top:16px">Sign in</button>
+    </form>
+    <div id="auth-msg"></div>
+    <div class="auth-links">
+      <a href="#" class="auth-switch" data-mode="signup">Create an account</a>
+      <a href="#" class="auth-switch" data-mode="signin" hidden>I already have an account</a>
+      <a href="#" class="auth-switch" data-mode="forgot">Forgot password?</a>
+    </div>
+  </div>
+  <button class="btn guest-btn" id="auth-guest">Continue without an account <span class="muted" style="font-weight:500">(saves on this device only)</span></button>
+</div>
+
+<!-- app -->
+<div class="wrap" id="app-root" hidden>
+  <header>
+    <div class="brand">
+      <div class="seal">IB</div>
+      <div>
+        <h1>IBZY</h1>
+        <small id="sub-due">loading…</small>
+      </div>
+      <div class="spacer"></div>
+      <span id="sync-status"></span>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme">◐</button>
+    </div>
+    <nav role="tablist">
+      <button role="tab" data-view="learn" aria-selected="true">Learn</button>
+      <button role="tab" data-view="acct">Accounting 101</button>
+      <button role="tab" data-view="browse">Browse</button>
+      <button role="tab" data-view="drill">Drill</button>
+      <button role="tab" data-view="quiz">Quiz</button>
+      <button role="tab" data-view="labs">Labs</button>
+      <button role="tab" data-view="map">Map</button>
+      <button role="tab" data-view="stories">Stories</button>
+      <button role="tab" data-view="dash">Progress</button>
+      <button role="tab" data-view="settings">Settings</button>
+    </nav>
+  </header>
+  <div id="boot-msg" hidden>Loading your progress…</div>
+  <main>
+    <section class="view" id="view-learn"></section>
+    <section class="view" id="view-acct" hidden></section>
+    <section class="view" id="view-browse" hidden></section>
+    <section class="view" id="view-drill" hidden></section>
+    <section class="view" id="view-quiz" hidden></section>
+    <section class="view" id="view-labs" hidden></section>
+    <section class="view" id="view-map" hidden></section>
+    <section class="view" id="view-stories" hidden></section>
+    <section class="view" id="view-dash" hidden></section>
+    <section class="view" id="view-settings" hidden></section>
+  </main>
+  <footer id="app-footer" class="muted" style="margin-top:34px;font-size:11px;text-align:center;font-family:var(--mono);letter-spacing:.02em"></footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="data/tracks.js"></script>
+<script src="data/primers.js"></script>
+<script src="data/accounting.js"></script>
+<script src="data/mcqs.js"></script>
+<script src="js/build-data.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

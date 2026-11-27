@@ -12,4 +12,5 @@
     });
   });
   window.IBZY_BANK=bank;
+  if(window.IBZY_MCQS_EXTRA) window.IBZY_MCQS=window.IBZY_MCQS.concat(window.IBZY_MCQS_EXTRA);
 })();

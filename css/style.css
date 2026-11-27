@@ -413,3 +413,4 @@ textarea.qnote{min-height:64px;font-size:14px}
 .set-group details>summary{padding-left:16px}
 .set-group details.set-more>summary{padding-left:0}
 #view-topics .learn-status{position:static;display:inline-block;margin-top:10px}
+.lb-done{color:var(--good);font-weight:700;font-size:13.5px;white-space:nowrap}

@@ -1607,7 +1607,9 @@ let _noteT={};
 function saveNote(id,txt){ if(txt.trim()) NOTES[id]=txt; else delete NOTES[id];
   clearTimeout(_noteT[id]); _noteT[id]=setTimeout(()=>LS.set(NOTES_KEY,NOTES),500); }
 function lessonStat(L){ const n=L.cards.length, r=L.cards.filter(c=>isRead(c.id)).length, s=LSCORE[L.id];
-  return {n, r, unlocked:r===n, passed:!!(s&&s.best>=PASS), best:s?s.best:null, tries:s?s.tries:0}; }
+  const quiz=hasQuiz(L);
+  return {n, r, unlocked:r===n, quiz, passed: quiz ? !!(s&&s.best>=PASS) : r===n, best:s?s.best:null, tries:s?s.tries:0}; }
+const _hq={}; function hasQuiz(L){ if(!(L.id in _hq)) _hq[L.id]=MCQS.some(m=>m.l===L.id); return _hq[L.id]; }
 function trackStat(T){ const Ls=LESSONS.filter(L=>L.track===T); let n=0,r=0,p=0;
   Ls.forEach(L=>{ const s=lessonStat(L); n+=s.n; r+=s.r; if(s.passed) p++; }); return {n,r,lessons:Ls.length,passed:p}; }
 const lessonQuizPool = L => MCQS.filter(m=>m.l===L.id);
@@ -1818,7 +1820,8 @@ function learnLesson(el){
   const paintBar=()=>{ const s=lessonStat(L); const pct=Math.round(s.r/s.n*100);
     $('#ll-bar').innerHTML=`<div class="lb-info"><div class="lb-count"><b>${s.r}/${s.n}</b> read${s.best!==null?` · best quiz ${s.best}/10`:''}</div>
         <div class="bar" style="margin:6px 0 0"><i style="width:${pct}%"></i></div></div>
-      ${s.unlocked?`<button class="btn primary" id="ll-quiz">${resumable?'Resume quiz':s.passed?'Retake quiz':'Take the lesson quiz'} →</button>`
+      ${!s.quiz?(s.unlocked?`<span class="lb-done">✓ Lesson complete</span>`:`<span class="muted" style="font-size:12.5px;white-space:nowrap">Read every card to complete</span>`)
+       :s.unlocked?`<button class="btn primary" id="ll-quiz">${resumable?'Resume quiz':s.passed?'Retake quiz':'Take the lesson quiz'} →</button>`
         :`<button class="btn" disabled title="Mark every card as read to unlock">🔒 Quiz locked</button>`}`;
     const qb=$('#ll-quiz'); if(qb) qb.onclick=()=>startLessonQuiz(L, resumable); };
   paintBar();

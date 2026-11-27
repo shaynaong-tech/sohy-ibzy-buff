@@ -7,6 +7,12 @@
 <meta name="description" content="IBZY — finance interview-prep study app: lessons, quizzes and drills following the Red Book.">
 <meta name="theme-color" content="#0a1f57">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a1f57'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='800' font-size='28' text-anchor='middle' fill='white'%3EIB%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IBZY">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -49,13 +55,13 @@
     </div>
     <nav role="tablist">
       <button role="tab" data-view="learn" aria-selected="true">Learn</button>
+      <button role="tab" data-view="topics">Topical practice</button>
       <button role="tab" data-view="acct">Accounting 101</button>
-      <button role="tab" data-view="browse">Browse</button>
       <button role="tab" data-view="drill">Drill</button>
       <button role="tab" data-view="quiz">Quiz</button>
       <button role="tab" data-view="labs">Labs</button>
-      <button role="tab" data-view="map">Map</button>
-      <button role="tab" data-view="stories">Stories</button>
+      <button role="tab" data-view="map" hidden>Map</button>
+      <button role="tab" data-view="stories" hidden>Stories</button>
       <button role="tab" data-view="dash">Progress</button>
       <button role="tab" data-view="settings">Settings</button>
     </nav>
@@ -63,8 +69,8 @@
   <div id="boot-msg" hidden>Loading your progress…</div>
   <main>
     <section class="view" id="view-learn"></section>
+    <section class="view" id="view-topics" hidden></section>
     <section class="view" id="view-acct" hidden></section>
-    <section class="view" id="view-browse" hidden></section>
     <section class="view" id="view-drill" hidden></section>
     <section class="view" id="view-quiz" hidden></section>
     <section class="view" id="view-labs" hidden></section>

@@ -243,6 +243,11 @@
       saveSession(null); base.del(MODE_KEY); location.reload();
     },
     leaveGuest(){ base.del(MODE_KEY); location.reload(); },
+    get status(){ return status; },
+    async updateName(name){
+      const u = await authCall('user', {data:{display_name:name}}, 'PUT', await accessToken());
+      const md=(u&&u.user_metadata)||{}; session.user.name = md.display_name||name; saveSession(session); return session.user.name;
+    },
     setNewPassword
   };
 

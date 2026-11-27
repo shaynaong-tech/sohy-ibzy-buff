@@ -488,17 +488,24 @@ function restoreBackup(json){
 }
 
 /* ---------- routing ---------- */
-const views = ['acct','learn','browse','drill','quiz','labs','map','stories','dash','settings'];
+const OWNER = (()=>{ const u=window.IBZY_ACCOUNT.user; const list=(window.IBZY_CONFIG.ownerEmails||[]).map(x=>x.toLowerCase());
+  return !!(u && u.email && list.includes(u.email.toLowerCase())); })();
+const OWNER_ONLY = ['map','stories'];
+OWNER_ONLY.forEach(v=>{ const nb=document.querySelector(`nav button[data-view="${v}"]`); if(nb) nb.hidden=!OWNER; });
+const views = ['learn','topics','acct','drill','quiz','labs','map','stories','dash','settings'];
 function show(v){
+  if(OWNER_ONLY.includes(v) && !OWNER) v='learn';
+  if(v==='browse') v='learn';
   views.forEach(x=>{ const sec=$('#view-'+x); if(sec) sec.hidden = x!==v;
     const nb=document.querySelector(`nav button[data-view="${x}"]`); if(nb) nb.setAttribute('aria-selected', x===v); });
   const fn=({drill:renderDrill, quiz:renderQuiz, labs:renderLabs, learn:renderLearn, acct:renderAcct,
-    browse:renderBrowse, dash:renderDash, map:renderMap, stories:renderStories, settings:renderSettings})[v];
+    topics:renderTopics, dash:renderDash, map:renderMap, stories:renderStories, settings:renderSettings})[v];
   if(fn) fn();
 }
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.view));
-$('#themeBtn').onclick=()=>{ SET.theme = SET.theme==='light'?'dark':'light';
-  document.documentElement.dataset.theme=SET.theme; saveSet(); };
+function toggleTheme(){ SET.theme = SET.theme==='light'?'dark':'light';
+  document.documentElement.dataset.theme=SET.theme; saveSet(); }
+$('#themeBtn').onclick=()=>{ toggleTheme(); if(!$('#view-settings').hidden) renderSettings(); };
 
 function updateDueBadge(){
   const due = BANK.filter(i=>inScope(i)&&isDue(i.id)&&drillReadOk(i)).length;
@@ -802,57 +809,61 @@ function renderDash(){
 function renderSettings(){
   const el=$('#view-settings');
   const acc=window.IBZY_ACCOUNT, u=acc.user;
-  const topics=[...new Set(BANK.map(i=>i.topic))];
-  el.innerHTML=`<div class="card">
-    <h3 style="margin-top:0">Account</h3>
-    ${u?`<p style="margin:0 0 4px">Signed in as <b>${esc(u.email)}</b>${u.name?' · '+esc(u.name):''}</p>
-      <p class="muted" style="font-size:13px;margin:0 0 12px">Your read ticks, notes, quiz scores, drill history and stories save to your account and sync to any device you sign in on.</p>
-      <div class="row"><button class="btn" id="acc-pw">Change password</button><button class="btn" id="acc-out">Sign out</button></div>`
-     :`<p style="margin:0 0 4px">You’re using IBZY as a <b>guest</b>.</p>
-      <p class="muted" style="font-size:13px;margin:0 0 12px">Progress is saved in this browser only. Create an account to sync it across devices — what you’ve done as a guest on this device is copied into the new account the first time you sign in.</p>
-      <div class="row"><button class="btn primary" id="acc-in">Sign in / create account</button></div>`}
-  </div>
-  <div class="card" style="margin-top:16px">
-    <h3 style="margin-top:0">In-scope topics</h3>
-    <p class="muted" style="font-size:13px">Checked topics are counted on the Progress tab’s drill stats. Drill has its own topic picker.</p>
-    <div class="checks">${topics.map(t=>`<label><input type="checkbox" value="${esc(t)}"
-       ${SET.inScope.includes(t)?'checked':''}> ${esc(t)}
-       <span class="muted" style="margin-left:auto">${BANK.filter(i=>i.topic===t).length}</span></label>`).join('')}</div>
-  </div>
-  <div class="card" style="margin-top:16px">
-    <h3 style="margin-top:0">Backup &amp; restore</h3>
-    <p class="muted" style="font-size:13px">Downloads <b>all</b> your data — read ticks, notes, lesson scores, drill and quiz history, settings and stories — as one file. You can also restore a backup from the old single-file IBZY here.</p>
-    <div class="row">
-      <button class="btn primary" id="bk-download">⬇ Download full backup</button>
-      <button class="btn" id="bk-show">Show backup text</button>
+  const initial=((u&&(u.name||u.email))||'G').trim()[0].toUpperCase();
+  const sw=(id,on,label,hint)=>`<label class="set-row" for="${id}"><span><b>${label}</b>${hint?`<small>${hint}</small>`:''}</span>
+      <span class="switch"><input type="checkbox" id="${id}" ${on?'checked':''}><i></i></span></label>`;
+  const readN=BANK.filter(c=>READ[c.id]).length, passedN=LESSONS.filter(L=>lessonStat(L).passed).length;
+  el.innerHTML=`
+  <div class="card set-profile">
+    <div class="avatar">${esc(initial)}</div>
+    <div class="set-who">
+      ${u?`<div class="set-name" id="set-name">${esc(u.name||'Add a display name')}</div><div class="muted set-email">${esc(u.email)}</div>`
+         :`<div class="set-name">Guest</div><div class="muted set-email">Progress saves on this device only</div>`}
+      <div class="set-chips"><span class="chip">${readN}/${BANK.length} cards read</span><span class="chip">${passedN}/${LESSONS.length} lessons passed</span>
+        ${u?`<span class="chip ${acc.status==='offline'?'warn':'ok'}">${acc.status==='offline'?'offline — will retry':'synced'}</span>`:''}</div>
     </div>
-    <textarea id="bk-text" readonly hidden style="margin-top:10px;min-height:120px;font-family:var(--font);font-size:11px"></textarea>
-    <h4 style="margin:16px 0 6px">Restore</h4>
-    <div class="row">
-      <button class="btn" id="bk-file-btn">Restore from file</button>
-      <input type="file" id="bk-file" accept=".json,application/json" hidden>
-    </div>
-    <textarea id="bk-paste" placeholder="… or paste backup text here, then tap Restore" style="margin-top:10px;min-height:90px;font-family:var(--font);font-size:11px"></textarea>
-    <div class="row"><button class="btn" id="bk-restore-text">Restore from pasted text</button></div>
-    <p class="muted" style="font-size:12px;margin-top:10px">Restoring <b>replaces</b> the matching data${u?' in your account':' on this device'}. The file is plain text and includes your notes and story answers — keep it private.</p>
   </div>
-  <div class="card" style="margin-top:16px">
-    <h3 style="margin-top:0">About</h3>
-    <p class="muted" style="font-size:12.5px;margin-top:6px">${esc(licLine())}. Card questions follow the order of the Wall Street Prep <i>Red Book</i> (1st edition); each card shows the page so you can check the original. Answers are study notes written for this app.</p>
+  ${u?`<div class="set-group"><div class="set-head">Account</div>
+      <button class="set-row" id="acc-name"><span><b>Display name</b><small>${esc(u.name||'Not set')}</small></span><span class="chev">›</span></button>
+      <button class="set-row" id="acc-pw"><span><b>Change password</b></span><span class="chev">›</span></button>
+      <button class="set-row" id="acc-out"><span><b style="color:var(--bad)">Sign out</b></span><span class="chev">›</span></button>
+    </div>`
+   :`<div class="set-group"><div class="set-head">Account</div>
+      <div class="set-row static"><span><b>Sync across devices</b><small>Create a free account — anything you’ve done as a guest here is copied in the first time you sign in.</small></span>
+      <button class="btn primary small" id="acc-in">Sign in</button></div></div>`}
+  <div class="set-group"><div class="set-head">Preferences</div>
+    ${sw('pf-dark',SET.theme==='dark','Dark mode','')}
+    ${sw('pf-drill',SET.drillReadOnly,'Drill only cards I’ve read','Keeps Drill from getting ahead of your lessons')}
+    ${sw('pf-quiz',SET.qzUnlockedOnly,'Quiz only unlocked lessons','Default for the Quiz tab’s lesson filter')}
   </div>
-  <div class="card" style="margin-top:16px">
-    <h3 style="margin-top:0">Reset</h3>
-    <div class="row">
-      <button class="btn" id="resetSR">Reset drill &amp; quiz history</button>
-      <button class="btn" id="resetAll" style="border-color:var(--bad);color:var(--bad)">Reset everything</button>
-    </div>
-    <p class="muted" style="font-size:12.5px;margin-top:10px">“Reset everything” also clears read ticks, notes, lesson scores and settings. Stories are kept.</p>
-  </div>`;
-  el.querySelectorAll('.checks input').forEach(c=>c.onchange=()=>{
-    SET.inScope = [...el.querySelectorAll('.checks input:checked')].map(x=>x.value);
-    saveSet(); updateDueBadge(); });
-  if(u){ $('#acc-out').onclick=()=>acc.signOut(); $('#acc-pw').onclick=()=>acc.setNewPassword(); }
-  else $('#acc-in').onclick=()=>acc.leaveGuest();
+  <div class="set-group"><div class="set-head">Use it like an app</div>
+    <div class="set-row static"><span><b>iPhone</b><small>Open the site in Safari → Share → <i>Add to Home Screen</i>.</small></span></div>
+    <div class="set-row static"><span><b>Android / Chrome / Mac</b><small>Browser menu → <i>Install IBZY</i> (or <i>Add to Home screen</i>). It opens full-screen with its own icon.</small></span></div>
+  </div>
+  <div class="set-group"><div class="set-head">Your data</div>
+    <button class="set-row" id="bk-download"><span><b>Download a backup</b><small>Read ticks, notes, scores, history and stories in one file — keep it private</small></span><span class="chev">⬇</span></button>
+    <button class="set-row" id="bk-file-btn"><span><b>Restore from a backup</b><small>Also works with a backup from the old single-file IBZY</small></span><span class="chev">›</span></button>
+    <input type="file" id="bk-file" accept=".json,application/json" hidden>
+    <details class="set-more"><summary>Paste backup text instead</summary>
+      <textarea id="bk-paste" placeholder="Paste backup text here" style="margin-top:8px;min-height:90px;font-size:11px"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn small" id="bk-restore-text">Restore from pasted text</button><button class="btn small" id="bk-show">Show my backup text</button></div>
+      <textarea id="bk-text" readonly hidden style="margin-top:8px;min-height:90px;font-size:11px"></textarea>
+    </details>
+  </div>
+  <div class="set-group danger"><details><summary class="set-head">Reset</summary>
+    <button class="set-row" id="resetSR"><span><b>Reset drill &amp; quiz history</b><small>Keeps read ticks, notes and lesson scores</small></span><span class="chev">›</span></button>
+    <button class="set-row" id="resetAll"><span><b style="color:var(--bad)">Reset everything</b><small>Read ticks, notes, lesson scores, history and settings. Stories are kept.</small></span><span class="chev">›</span></button>
+  </details></div>
+  <p class="muted set-about">Card questions follow the Wall Street Prep <i>Red Book</i> (1st ed.) in order, with page numbers. Answers are study notes written for IBZY.</p>`;
+  $('#pf-dark').onchange=()=>{ toggleTheme(); };
+  $('#pf-drill').onchange=e=>{ SET.drillReadOnly=e.target.checked; saveSet(); updateDueBadge(); };
+  $('#pf-quiz').onchange=e=>{ SET.qzUnlockedOnly=e.target.checked; saveSet(); };
+  if(u){
+    $('#acc-out').onclick=()=>{ if(confirm('Sign out of IBZY on this device?')) acc.signOut(); };
+    $('#acc-pw').onclick=()=>acc.setNewPassword();
+    $('#acc-name').onclick=async()=>{ const n=prompt('Display name', u.name||''); if(n===null) return;
+      try{ await acc.updateName(n.trim()); toast('Name updated'); renderSettings(); }catch(e){ toast(e.message); } };
+  } else $('#acc-in').onclick=()=>acc.leaveGuest();
   $('#bk-download').onclick=downloadBackup;
   $('#bk-show').onclick=()=>{ const t=$('#bk-text'); t.value=backupJSON(); t.hidden=!t.hidden; if(!t.hidden){ t.focus(); t.select(); } };
   $('#bk-file-btn').onclick=()=>$('#bk-file').click();
@@ -860,7 +871,7 @@ function renderSettings(){
   $('#bk-restore-text').onclick=()=>{ const v=$('#bk-paste').value.trim(); if(!v){ toast('Paste backup text first'); return; } restoreBackup(v); };
   $('#resetSR').onclick=()=>{ if(confirm('Wipe drill scheduling, review history and quiz history?')){
     SR={}; REVIEWS=[]; saveSR(); saveReviews(); ['rba_mcq_log','rba_mcq_sr','rba_quiz'].forEach(k=>STORE.removeItem(k));
-    queue=[];current=null; toast('History reset'); setTimeout(()=>location.reload(),600); } };
+    queue=[];current=null; toast('History reset'); window.IBZY_ACCOUNT.flush().finally(()=>setTimeout(()=>location.reload(),400)); } };
   $('#resetAll').onclick=()=>{ if(confirm('Erase ALL progress — read ticks, notes, lesson scores, drill and quiz history, primer checks and settings? Stories are kept.')){
     ['rba_items','rba_leitner','rba_reviews','rba_settings','rba_quiz','rba_primer_prog','rba_mcq_log','rba_mcq_sr',
      'ibzy_read','ibzy_notes','ibzy_lessons','ibzy_lq','ibzy_last'].forEach(k=>STORE.removeItem(k));
@@ -1668,7 +1679,8 @@ const trackOfPrimer = id => TRACKS.find(T=>(T.primers||[]).includes(id));
 
 /* ---- navigation state ---- */
 let learnNav = {screen:'home'};    // home | track{t} | lesson{l} | lquiz{l} | primer{id,quiz}
-window.openPrimer=(id)=>{ learnNav={screen:'primer', id, quiz:null}; show('learn'); };
+let topicNav = {id:null, quiz:null};       // Topical practice tab: list, or one primer + its check
+window.openPrimer=(id)=>{ topicNav={id, quiz:null}; show('topics'); window.scrollTo(0,0); };
 window.openTrack=(t)=>{ learnNav={screen:'track', t}; show('learn'); window.scrollTo(0,0); };
 function openLesson(lid, focusCard){ learnNav={screen:'lesson', l:lid, focus:focusCard||null}; show('learn'); if(!focusCard) window.scrollTo(0,0); }
 window.openLesson=openLesson;
@@ -1700,7 +1712,7 @@ function renderLearn(){
   if(s==='track') return learnTrack(el);
   if(s==='lesson') return learnLesson(el);
   if(s==='lquiz') return learnLessonQuiz(el);
-  if(s==='primer') return learnPrimer(el);
+  if(s==='all') return learnAll(el);
   return learnHome(el);
 }
 
@@ -1724,7 +1736,9 @@ function learnHome(el){
         </div>
         <button class="btn primary" onclick="openLesson('${next.id}')" style="flex:0 0 auto">${lastL?'Continue':'Start'} →</button>
       </div></div>`:''}
-    <div class="row" style="justify-content:space-between;margin:20px 2px 2px"><h3 style="margin:0">Modules</h3><span class="muted" style="font-size:12px">${readCards}/${totalCards} cards read</span></div>
+    <div class="row" style="justify-content:space-between;align-items:center;margin:20px 2px 2px"><h3 style="margin:0">Modules</h3>
+      <span class="row" style="gap:10px;align-items:center"><span class="muted" style="font-size:12px">${readCards}/${totalCards} cards read</span>
+      <button class="btn small" id="lh-all">All cards</button></span></div>
     <div class="learn-grid">${TRACKS.map((T,i)=>{ const st=trackStat(T); const frac=st.n?st.r/st.n:0;
       return `<div class="learn-card module-card" role="button" tabindex="0" onclick="openTrack('${T.id}')" onkeydown="if(event.key==='Enter')openTrack('${T.id}')">
         <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap;gap:10px">
@@ -1737,6 +1751,7 @@ function learnHome(el){
         ${st.lessons?`<div class="mini-bubs">${T.units.filter(U=>U.lessons&&U.lessons.length).map(U=>bubbleRow(U,true,true)).join('')}</div>`:''}
       </div>`; }).join('')}</div>
     </div>`;
+  $('#lh-all').onclick=()=>{ learnNav={screen:'all'}; renderLearn(); window.scrollTo(0,0); };
   const inp=$('#learn-search'); let t=null;
   inp.oninput=()=>{ clearTimeout(t); t=setTimeout(()=>searchCards(inp.value),150); };
 }
@@ -1885,12 +1900,12 @@ function learnLessonQuiz(el){
   equalizeOpts('#pq-opts');
 }
 
-function learnPrimer(el){
-  const p=PRIMERS.find(x=>x.id===learnNav.id); if(!p){ learnNav={screen:'home'}; return renderLearn(); }
+function topicPrimer(el){
+  const p=PRIMERS.find(x=>x.id===topicNav.id); if(!p){ topicNav={id:null,quiz:null}; return renderTopics(); }
   const T=trackOfPrimer(p.id);
-  const back=`<div class="crumbs"><a href="#" id="lp-back">← ${T?esc(T.title):'All modules'}</a></div>`;
-  const bindBack=()=>{ $('#lp-back').onclick=e=>{ e.preventDefault(); if(T) openTrack(T.id); else { learnNav={screen:'home'}; renderLearn(); } }; };
-  const q=learnNav.quiz;
+  const back=`<div class="crumbs"><a href="#" id="lp-back">← All topics</a></div>`;
+  const bindBack=()=>{ $('#lp-back').onclick=e=>{ e.preventDefault(); topicNav={id:null,quiz:null}; renderTopics(); window.scrollTo(0,0); }; };
+  const q=topicNav.quiz;
   if(!q){
     el.innerHTML=back+`<div class="card">
       <span class="pill">${esc(p.tag)}</span>
@@ -1899,7 +1914,7 @@ function learnPrimer(el){
       <div class="row" style="margin-top:18px"><button class="btn primary" id="lp-check">Take the 10-question check →</button></div>
     </div>`;
     bindBack();
-    $('#lp-check').onclick=()=>{ const pool=shuffle(p.quiz.map(x=>({...x}))); learnNav.quiz={pool:pool.map(shuffleOpts),idx:0,score:0,answered:false,log:[]}; renderLearn(); };
+    $('#lp-check').onclick=()=>{ const pool=shuffle(p.quiz.map(x=>({...x}))); topicNav.quiz={pool:pool.map(shuffleOpts),idx:0,score:0,answered:false,log:[]}; renderTopics(); };
     return;
   }
   if(q.idx>=q.pool.length){
@@ -1917,11 +1932,11 @@ function learnPrimer(el){
       <div class="row" style="margin-top:16px">
         <button class="btn" id="lp-retake">Retake check</button>
         <button class="btn" id="lp-reread">Re-read primer</button>
-        ${T?`<button class="btn primary" onclick="openTrack('${T.id}')">Back to ${esc(T.title)}</button>`:''}
+        ${T&&LESSONS.some(L=>L.track===T)?`<button class="btn primary" onclick="openTrack('${T.id}')">Go to the ${esc(T.title)} lessons →</button>`:''}
       </div></div>`;
     bindBack();
-    $('#lp-retake').onclick=()=>{ const pool=shuffle(p.quiz.map(x=>({...x}))); learnNav.quiz={pool:pool.map(shuffleOpts),idx:0,score:0,answered:false,log:[]}; renderLearn(); };
-    $('#lp-reread').onclick=()=>{ learnNav.quiz=null; renderLearn(); };
+    $('#lp-retake').onclick=()=>{ const pool=shuffle(p.quiz.map(x=>({...x}))); topicNav.quiz={pool:pool.map(shuffleOpts),idx:0,score:0,answered:false,log:[]}; renderTopics(); };
+    $('#lp-reread').onclick=()=>{ topicNav.quiz=null; renderTopics(); };
     return;
   }
   const m=q.pool[q.idx];
@@ -1945,17 +1960,39 @@ function learnPrimer(el){
     q.log.push({q:m.q,correct,right:m.o[m.a],e:m.e});
     $('#pq-next').hidden=false;
   });
-  $('#lp-next').onclick=()=>{ q.idx++; q.answered=false; renderLearn(); };
+  $('#lp-next').onclick=()=>{ q.idx++; q.answered=false; renderTopics(); };
   equalizeOpts('#pq-opts');
 }
 
-/* ---------- BROWSE (every card, grouped by module → unit → lesson) ---------- */
-function renderBrowse(){
-  const el=$('#view-browse');
+
+/* ---------- TOPICAL PRACTICE (the 12 primers, each with a 10-question check) ---------- */
+function renderTopics(){
+  const el=$('#view-topics');
+  if(topicNav.id) return topicPrimer(el);
+  const prog=primerProg(); const done=PRIMERS.filter(p=>primerStatus(p.id)==='done').length;
+  el.innerHTML=`<div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:nowrap;gap:12px">
+        <div><h2 class="serif" style="margin:0 0 4px">Topical practice</h2>
+        <p class="muted" style="font-size:13.5px;margin:0">A short primer on each area, then a 10-question check on just that topic. Pass with ${MASTER}/10 — a quick way to get the big picture before (or after) the lessons.</p></div>
+        <div class="ring-big">${ringHTML(done/PRIMERS.length,64)}<span>${done}/${PRIMERS.length}</span></div>
+      </div></div>
+    <div class="learn-grid" style="margin-top:16px">${PRIMERS.map((p,i)=>{ const st=primerStatus(p.id);
+      return `<button class="learn-card" onclick="openPrimer('${p.id}')">
+        <div class="learn-tag"><span class="learn-step">${i+1}</span>${esc(p.tag)}</div>
+        <div class="learn-title">${esc(p.title)}</div>
+        <div class="learn-meta">Primer + 10-question check</div>
+        <span class="learn-status ls-${st==='done'?'done':st==='prog'?'prog':'todo'}">${st==='done'?'✓ passed':st==='prog'?'best '+prog[p.id]+'/10':'not started'}</span>
+      </button>`; }).join('')}</div>`;
+}
+
+/* ---------- LEARN: all cards (what used to be Browse) ---------- */
+function learnAll(el){
   const unread = !!SET.browseUnread;
-  el.innerHTML = `<div class="row" style="gap:10px;flex-wrap:nowrap"><input type="search" id="q" placeholder="Search ${BANK.length} questions…" style="flex:1">
+  el.innerHTML = `<div class="crumbs"><a href="#" id="la-home">← Learn</a></div>
+    <div class="row" style="gap:10px;flex-wrap:nowrap"><input type="search" id="q" placeholder="Search ${BANK.length} cards…" style="flex:1">
     <label class="toggle"><input type="checkbox" id="b-unread" ${unread?'checked':''}> Unread only</label></div>
     <div id="bt"></div>`;
+  $('#la-home').onclick=e=>{ e.preventDefault(); learnNav={screen:'home'}; renderLearn(); };
   const strip=h=>(h||'').replace(/<[^>]+>/g,' ');
   const draw=(filter='')=>{
     const f=filter.toLowerCase(), onlyUnread=$('#b-unread').checked;
@@ -1967,7 +2004,7 @@ function renderBrowse(){
         <button class="icon-btn" style="margin-left:auto" data-drill="${esc(T.title)}">Drill topic</button></div>`;
       T.units.forEach(U=>{ (U.lessons||[]).forEach(L=>{ const lc=L.cards.map(c=>CARD[c.id]||c).filter(match); if(!lc.length) return;
         const st=lessonStat(L);
-        html+=`<details${f?' open':''}><summary>Lesson ${L.n} · ${esc(L.title)} <span class="muted">· ${st.r}/${st.n} read</span></summary>
+        html+=`<details${f||!html.includes('<details')?' open':''}><summary>Lesson ${L.n} · ${esc(L.title)} <span class="muted">· ${st.r}/${st.n} read</span></summary>
           <div class="body">${lc.map(c=>cardHTML(c)).join('')}
           <div class="row" style="margin-top:8px"><button class="btn small" onclick="openLesson('${L.id}')">Open lesson ${L.n} →</button></div></div></details>`; }); });
     });

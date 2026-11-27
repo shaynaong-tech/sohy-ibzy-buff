@@ -1,6 +1,6 @@
 # IBZY
 
-Finance interview-prep study app: modules → lesson bubbles → 10 cards + a lesson quiz, plus Accounting 101, Browse, Drill, Quiz, Labs, Map, Stories and Progress.
+Finance interview-prep study app: modules → lesson bubbles → 10 cards + a lesson quiz, plus Topical practice (primers + checks), Accounting 101, Drill, Quiz, Labs, Progress and Settings. Map and Stories only show for the emails in `js/config.js` → `ownerEmails`.
 
 - Static site — no build step. Vercel serves the repo root as-is.
 - Accounts and progress sync use Supabase (`js/config.js`, table `public.user_state` with row-level security).

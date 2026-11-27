@@ -500,9 +500,14 @@ function show(v){
     const nb=document.querySelector(`nav button[data-view="${x}"]`); if(nb) nb.setAttribute('aria-selected', x===v); });
   const fn=({drill:renderDrill, quiz:renderQuiz, labs:renderLabs, learn:renderLearn, acct:renderAcct,
     topics:renderTopics, dash:renderDash, map:renderMap, stories:renderStories, settings:renderSettings})[v];
+  const sb=$('#settingsBtn'); if(sb){ sb.setAttribute('aria-pressed', v==='settings'); sb.classList.toggle('on', v==='settings'); }
+  if(v!=='settings') lastView=v;
   if(fn) fn();
+  window.scrollTo(0,0);
 }
+let lastView='learn';
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.view));
+$('#settingsBtn').onclick=()=>show($('#view-settings').hidden ? 'settings' : lastView);
 function toggleTheme(){ SET.theme = SET.theme==='light'?'dark':'light';
   document.documentElement.dataset.theme=SET.theme; saveSet(); }
 $('#themeBtn').onclick=()=>{ toggleTheme(); if(!$('#view-settings').hidden) renderSettings(); };
@@ -813,7 +818,7 @@ function renderSettings(){
   const sw=(id,on,label,hint)=>`<label class="set-row" for="${id}"><span><b>${label}</b>${hint?`<small>${hint}</small>`:''}</span>
       <span class="switch"><input type="checkbox" id="${id}" ${on?'checked':''}><i></i></span></label>`;
   const readN=BANK.filter(c=>READ[c.id]).length, passedN=LESSONS.filter(L=>lessonStat(L).passed).length;
-  el.innerHTML=`
+  el.innerHTML=`<button class="btn set-back" id="setBack">‹ Back</button>
   <div class="card set-profile">
     <div class="avatar">${esc(initial)}</div>
     <div class="set-who">
@@ -872,6 +877,7 @@ function renderSettings(){
   $('#resetSR').onclick=()=>{ if(confirm('Wipe drill scheduling, review history and quiz history?')){
     SR={}; REVIEWS=[]; saveSR(); saveReviews(); ['rba_mcq_log','rba_mcq_sr','rba_quiz'].forEach(k=>STORE.removeItem(k));
     queue=[];current=null; toast('History reset'); window.IBZY_ACCOUNT.flush().finally(()=>setTimeout(()=>location.reload(),400)); } };
+  $('#setBack').onclick=()=>show(lastView);
   $('#resetAll').onclick=()=>{ if(confirm('Erase ALL progress — read ticks, notes, lesson scores, drill and quiz history, primer checks and settings? Stories are kept.')){
     ['rba_items','rba_leitner','rba_reviews','rba_settings','rba_quiz','rba_primer_prog','rba_mcq_log','rba_mcq_sr',
      'ibzy_read','ibzy_notes','ibzy_lessons','ibzy_lq','ibzy_last'].forEach(k=>STORE.removeItem(k));

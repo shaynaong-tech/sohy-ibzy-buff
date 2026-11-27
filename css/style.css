@@ -414,3 +414,7 @@ textarea.qnote{min-height:64px;font-size:14px}
 .set-group details.set-more>summary{padding-left:0}
 #view-topics .learn-status{position:static;display:inline-block;margin-top:10px}
 .lb-done{color:var(--good);font-weight:700;font-size:13.5px;white-space:nowrap}
+
+#settingsBtn{display:inline-flex;align-items:center;justify-content:center}
+#settingsBtn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.set-back{margin:0 0 12px;padding:6px 12px;font-size:13px}

@@ -39,6 +39,7 @@
     if(/already registered|already been registered/i.test(m)) return 'That email already has an account — sign in instead.';
     if(/rate limit/i.test(m)) return 'Too many emails sent recently. Wait a few minutes and try again.';
     if(/password should be at least/i.test(m)) return 'Password needs at least 6 characters.';
+    if(/email logins are disabled|email signups are disabled|signups not allowed/i.test(m)) return 'Email sign-in is switched off for this app right now. Please let the app owner know.';
     return m;
   }
   function toSession(j){

@@ -259,6 +259,7 @@ function acctRenderLab(){
 function renderAcct(){
   const el=$('#view-acct');
   el.innerHTML=`
+  <div class="ll-top"><button class="icon-btn" id="acct-back" aria-label="Back to Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><div class="ll-crumb">Home · Accounting 101</div></div>
   <div class="card">
     <span class="pill">Start here \u00b7 no experience needed</span>
     <h2 style="margin:10px 0 6px;font-family:var(--display)">Read financial statements from scratch</h2>
@@ -562,8 +563,9 @@ const OWNER = (()=>{ const u=window.IBZY_ACCOUNT.user; const list=(window.IBZY_C
 const OWNER_ONLY = ['map','stories'];
 OWNER_ONLY.forEach(v=>{ const nb=document.querySelector(`nav button[data-view="${v}"]`); if(nb) nb.hidden=!OWNER; });
 const views = ['home','practice','learn','topics','acct','drill','quiz','labs','map','stories','dash','settings'];
-const PRACTICE_GROUP=['practice','drill','quiz','labs','topics'], LEARN_GROUP=['learn','acct'];
-const navOf = v => PRACTICE_GROUP.includes(v)?'practice' : LEARN_GROUP.includes(v)?'learn' : v;
+const PRACTICE_GROUP=['practice','drill','quiz','labs','topics'], LEARN_GROUP=['learn'];
+const navOf = v => PRACTICE_GROUP.includes(v)?'practice' : LEARN_GROUP.includes(v)?'learn' : v==='acct'?'home' : v;
+document.addEventListener('click',e=>{ if(e.target.closest('#acct-back')){ show('home'); window.scrollTo(0,0); } });
 function show(v){
   if(OWNER_ONLY.includes(v) && !OWNER) v='learn';
   if(v==='browse') v='learn';
@@ -1814,10 +1816,6 @@ function learnHome(el){
     <input type="search" id="learn-search" placeholder="Search all ${totalCards} cards…" autocomplete="off">
     <div id="learn-results"></div>
     <div id="learn-main">
-    <button class="feat-card" onclick="show('acct');window.scrollTo(0,0)">
-      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 19h0"/></svg></span>
-      <span class="tx"><b>Accounting 101</b><span>Read financial statements from scratch, with the interactive sandbox.</span></span>
-      <span class="go">Open →</span></button>
     ${next?`<div class="card continue-card">
       <div class="row" style="justify-content:space-between;align-items:center;gap:14px;flex-wrap:nowrap">
         <div style="min-width:0">

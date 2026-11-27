@@ -261,7 +261,7 @@ function renderAcct(){
   el.innerHTML=`
   <div class="card">
     <span class="pill">Start here \u00b7 no experience needed</span>
-    <h2 style="margin:10px 0 6px;font-family:Georgia,serif">Read financial statements from scratch</h2>
+    <h2 style="margin:10px 0 6px;font-family:var(--display)">Read financial statements from scratch</h2>
     <p class="muted" style="margin:0">Three short ideas, then a sandbox where you post real business transactions and watch the income statement, balance sheet and cash flow statement build themselves \u2014 line by line.</p>
 
     <h3 style="margin:22px 0 6px">1 \u00b7 The accounting equation</h3>
@@ -391,7 +391,7 @@ function renderStories(){
   el.innerHTML=`
   <div class="card">
     <span class="pill">Behavioral &amp; fit</span>
-    <h2 style="margin:10px 0 6px;font-family:Georgia,serif">Your story bank</h2>
+    <h2 style="margin:10px 0 6px;font-family:var(--display)">Your story bank</h2>
     <p class="muted" style="margin:0">Draft and keep your answers to the common behavioral and fit questions, plus your own STAR stories. Everything saves automatically on this device, and is included when you take a full backup (Settings \u2192 Backup &amp; restore).</p>
     <div id="st-status" class="muted" style="font-size:12px;margin-top:8px">&nbsp;</div>
   </div>
@@ -487,26 +487,99 @@ function restoreBackup(json){
   toast('Restored \u2014 saving and reloading\u2026'); window.IBZY_ACCOUNT.flush().finally(()=>setTimeout(()=>location.reload(),300));
 }
 
+/* ---------- HOME + PRACTICE (v3) ---------- */
+function dayStreak(){
+  const days=[...new Set(REVIEWS.map(r=>{const d=new Date(r.ts);d.setHours(0,0,0,0);return d.getTime();}))].sort((a,b)=>b-a);
+  let streak=0, cur=startOfToday();
+  for(const d of days){ if(d===cur||d===cur-DAY){ streak++; cur=d-DAY; } else if(d<cur-DAY) break; }
+  return streak;
+}
+function nextLesson(){
+  const last=LS.get(LAST_KEY,null); const lastL=last&&LESSONS.find(L=>L.id===last.lesson);
+  if(!lastL) return {L:LESSONS[0], resume:false};
+  const st=lessonStat(lastL); return {L: st.passed ? (LESSONS[LESSONS.indexOf(lastL)+1]||lastL) : lastL, resume:true};
+}
+function heroHTML(){
+  const {L,resume}=nextLesson(); if(!L) return '';
+  const st=lessonStat(L); const pct=st.n?Math.round(st.r/st.n*100):0;
+  const pages=L.pages?`pp. ${esc(L.pages)}`:'';
+  return `<section class="hero">
+    <div class="eyebrow"><span>${resume?'Continue':'Start here'} · ${esc(L.track.title)}</span><span>${pages}</span></div>
+    <h3>${esc(L.title)}</h3>
+    <div class="prog"><div class="bar"><i style="width:${pct}%"></i></div><span>${st.r} of ${st.n} read</span></div>
+    <button class="btn lime" onclick="openLesson('${L.id}')">${resume?'Resume lesson':'Start lesson'} →</button>
+  </section>`;
+}
+function renderHome(){
+  const el=$('#view-home');
+  const u=window.IBZY_ACCOUNT.user; const name=(u&&u.name)||'';
+  const h=new Date().getHours(); const greet=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+  const due=BANK.filter(i=>inScope(i)&&isDue(i.id)&&drillReadOk(i)).length;
+  const passed=LESSONS.filter(L=>lessonStat(L).passed).length;
+  const tracks=TRACKS.filter(T=>LESSONS.some(L=>L.track===T));
+  const streak=dayStreak();
+  el.innerHTML=`
+    <div class="page-h"><h2>${greet}${name?', '+esc(name):''}</h2><p>Pick up where you left off.</p></div>
+    ${heroHTML()}
+    <div class="stats3">
+      <button class="stat3" onclick="show('drill')"><div class="n">${due}</div><div class="l">cards due</div></button>
+      <div class="stat3"><div class="n">${streak}<small>${streak===1?'day':'days'}</small></div><div class="l">streak</div></div>
+      <button class="stat3" onclick="show('dash')"><div class="n">${passed}</div><div class="l">lessons passed</div></button>
+    </div>
+    <div class="sec-h"><h3>Your modules</h3><a href="#" id="home-all">See all ${tracks.length}</a></div>
+    <div class="list">${tracks.map(T=>{ const st=trackStat(T); const pct=st.n?Math.round(st.r/st.n*100):0;
+      return `<button class="list-row" onclick="openTrack('${T.id}')"><div style="flex:1;min-width:0">
+        <div class="t"><span>${esc(T.title)}</span><span class="pct">${pct}%</span></div>
+        <div class="s">${st.lessons} lessons · ${st.n} cards · ${st.passed} passed</div>
+        <div class="bar"><i style="width:${pct}%"></i></div></div></button>`; }).join('')}</div>`;
+  $('#home-all').onclick=(e)=>{ e.preventDefault(); learnNav={screen:'home'}; show('learn'); window.scrollTo(0,0); };
+}
+const PIC={drill:'<path d="M4 4h16v12H4z"/><path d="M8 20h8M12 16v4"/>',
+  quiz:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/>',
+  labs:'<path d="M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/><path d="M7 15h10"/>',
+  topics:'<path d="M4 6h16M4 12h10M4 18h7"/>'};
+function renderPractice(){
+  const el=$('#view-practice');
+  const due=BANK.filter(i=>inScope(i)&&isDue(i.id)&&drillReadOk(i)).length;
+  const cards=[
+    ['drill','Drill','Spaced-repetition flashcards from cards you’ve read.', due?`${due} due today`:'Nothing due', due>0],
+    ['quiz','Quiz','Multiple choice by lesson or topic.', `${MCQS.length} questions`, false],
+    ['labs','Labs','Hands-on engines: 3-statement links, paper LBO, accretion.', '3 labs', false],
+    ['topics','Topical practice','Short primers with a check at the end.', `${(PRIMERS||[]).length} topics`, false]];
+  el.innerHTML=`<div class="page-h"><h2>Practice</h2><p>Test what you’ve read, four ways.</p></div>
+    <div class="prac-grid">${cards.map(([v,t,d,m,hot])=>`<button class="prac-card${hot?' hot':''}" onclick="show('${v}');window.scrollTo(0,0)">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PIC[v]}</svg></span>
+      <b>${t}</b><span class="d">${d}</span><span class="m">${m}</span></button>`).join('')}</div>`;
+}
+
 /* ---------- routing ---------- */
 const OWNER = (()=>{ const u=window.IBZY_ACCOUNT.user; const list=(window.IBZY_CONFIG.ownerEmails||[]).map(x=>x.toLowerCase());
   return !!(u && u.email && list.includes(u.email.toLowerCase())); })();
 const OWNER_ONLY = ['map','stories'];
 OWNER_ONLY.forEach(v=>{ const nb=document.querySelector(`nav button[data-view="${v}"]`); if(nb) nb.hidden=!OWNER; });
-const views = ['learn','topics','acct','drill','quiz','labs','map','stories','dash','settings'];
+const views = ['home','practice','learn','topics','acct','drill','quiz','labs','map','stories','dash','settings'];
+const PRACTICE_GROUP=['practice','drill','quiz','labs','topics'], LEARN_GROUP=['learn','acct'];
+const navOf = v => PRACTICE_GROUP.includes(v)?'practice' : LEARN_GROUP.includes(v)?'learn' : v;
 function show(v){
   if(OWNER_ONLY.includes(v) && !OWNER) v='learn';
   if(v==='browse') v='learn';
   views.forEach(x=>{ const sec=$('#view-'+x); if(sec) sec.hidden = x!==v;
-    const nb=document.querySelector(`nav button[data-view="${x}"]`); if(nb) nb.setAttribute('aria-selected', x===v); });
+    const nb=document.querySelector(`nav button[data-view="${x}"]`); if(nb) nb.setAttribute('aria-selected', x===navOf(v)); });
+  const pb=$('#practice-bar'); if(pb){ pb.hidden=!PRACTICE_GROUP.includes(v);
+    pb.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected', b.dataset.sub===v)); }
   const fn=({drill:renderDrill, quiz:renderQuiz, labs:renderLabs, learn:renderLearn, acct:renderAcct,
-    topics:renderTopics, dash:renderDash, map:renderMap, stories:renderStories, settings:renderSettings})[v];
+    topics:renderTopics, dash:renderDash, home:renderHome, practice:renderPractice, map:renderMap, stories:renderStories, settings:renderSettings})[v];
   const sb=$('#settingsBtn'); if(sb){ sb.setAttribute('aria-pressed', v==='settings'); sb.classList.toggle('on', v==='settings'); }
   if(v!=='settings') lastView=v;
   if(fn) fn();
   window.scrollTo(0,0);
 }
-let lastView='learn';
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.view));
+let lastView='home';
+document.querySelectorAll('nav#mainnav button').forEach(b=>b.onclick=()=>{
+  if(b.dataset.view==='learn'){ learnNav={screen:'home'}; }
+  if(b.dataset.view==='practice' && PRACTICE_GROUP.includes(lastView)){ return show(lastView==='practice'?'practice':lastView); }
+  show(b.dataset.view); window.scrollTo(0,0); });
+document.querySelectorAll('#practice-bar button').forEach(b=>b.onclick=()=>{ show(b.dataset.sub); window.scrollTo(0,0); });
 $('#settingsBtn').onclick=()=>show($('#view-settings').hidden ? 'settings' : lastView);
 function toggleTheme(){ SET.theme = SET.theme==='light'?'dark':'light';
   document.documentElement.dataset.theme=SET.theme; saveSet(); }
@@ -515,7 +588,7 @@ $('#themeBtn').onclick=()=>{ toggleTheme(); if(!$('#view-settings').hidden) rend
 function updateDueBadge(){
   const due = BANK.filter(i=>inScope(i)&&isDue(i.id)&&drillReadOk(i)).length;
   const rd = BANK.filter(i=>READ[i.id]).length;
-  $('#sub-due').textContent = rd+'/'+BANK.length+' cards read'+(due>0&&rd?` \u00b7 ${due} to drill`:'');
+  $('#sub-due').textContent = (due>0&&rd)?`${due} to drill`:'';
 }
 
 /* ---------- DRILL ---------- */
@@ -843,7 +916,7 @@ function renderSettings(){
   </div>
   <div class="set-group"><div class="set-head">Use it like an app</div>
     <div class="set-row static"><span><b>iPhone</b><small>Open the site in Safari → Share → <i>Add to Home Screen</i>.</small></span></div>
-    <div class="set-row static"><span><b>Android / Chrome / Mac</b><small>Browser menu → <i>Install IBZY</i> (or <i>Add to Home screen</i>). It opens full-screen with its own icon.</small></span></div>
+    <div class="set-row static"><span><b>Android / Chrome / Mac</b><small>Browser menu → <i>Install the crIB</i> (or <i>Add to Home screen</i>). It opens full-screen with its own icon.</small></span></div>
   </div>
   <div class="set-group"><div class="set-head">Your data</div>
     <button class="set-row" id="bk-download"><span><b>Download a backup</b><small>Read ticks, notes, scores, history and stories in one file — keep it private</small></span><span class="chev">⬇</span></button>
@@ -864,7 +937,7 @@ function renderSettings(){
   $('#pf-drill').onchange=e=>{ SET.drillReadOnly=e.target.checked; saveSet(); updateDueBadge(); };
   $('#pf-quiz').onchange=e=>{ SET.qzUnlockedOnly=e.target.checked; saveSet(); };
   if(u){
-    $('#acc-out').onclick=()=>{ if(confirm('Sign out of IBZY on this device?')) acc.signOut(); };
+    $('#acc-out').onclick=()=>{ if(confirm('Sign out of the crIB on this device?')) acc.signOut(); };
     $('#acc-pw').onclick=()=>acc.setNewPassword();
     $('#acc-name').onclick=async()=>{ const n=prompt('Display name', u.name||''); if(n===null) return;
       try{ await acc.updateName(n.trim()); toast('Name updated'); renderSettings(); }catch(e){ toast(e.message); } };
@@ -930,7 +1003,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* credits */
-function licLine(){ return 'IBZY \u00b7 interview-prep study app \u00b7 \u00a9 '+new Date().getFullYear(); }
+function licLine(){ return 'the crIB \u00b7 your one-stop study hub \u00b7 \u00a9 '+new Date().getFullYear(); }
 function renderFooter(){ const f=document.getElementById('app-footer'); if(f) f.textContent=licLine(); }
 
 const PRIMERS = window.IBZY_PRIMERS;
@@ -1746,7 +1819,7 @@ function learnHome(el){
       </div></div>`:''}
     <div class="row" style="justify-content:space-between;align-items:center;margin:20px 2px 2px"><h3 style="margin:0">Modules</h3>
       <span class="row" style="gap:10px;align-items:center"><span class="muted" style="font-size:12px">${readCards}/${totalCards} cards read</span>
-      <button class="btn small" id="lh-all">All cards</button></span></div>
+      <button class="btn small" id="lh-acct">Accounting 101 sandbox</button><button class="btn small" id="lh-all">All cards</button></span></div>
     <div class="learn-grid">${TRACKS.map((T,i)=>{ const st=trackStat(T); const frac=st.n?st.r/st.n:0;
       return `<div class="learn-card module-card" role="button" tabindex="0" onclick="openTrack('${T.id}')" onkeydown="if(event.key==='Enter')openTrack('${T.id}')">
         <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap;gap:10px">
@@ -1759,6 +1832,7 @@ function learnHome(el){
         ${st.lessons?`<div class="mini-bubs">${T.units.filter(U=>U.lessons&&U.lessons.length).map(U=>bubbleRow(U,true,true)).join('')}</div>`:''}
       </div>`; }).join('')}</div>
     </div>`;
+  $('#lh-acct').onclick=()=>{ show('acct'); window.scrollTo(0,0); };
   $('#lh-all').onclick=()=>{ learnNav={screen:'all'}; renderLearn(); window.scrollTo(0,0); };
   const inp=$('#learn-search'); let t=null;
   inp.oninput=()=>{ clearTimeout(t); t=setTimeout(()=>searchCards(inp.value),150); };
@@ -2031,5 +2105,5 @@ updateDueBadge();
 renderFooter();
 if(STORAGE_VOLATILE){ setTimeout(()=>toast('Private/preview mode: this browser is blocking storage, so progress may not save'),600); }
 window.toast=toast; window.show=show;
-show('learn');
+show('home');
 };

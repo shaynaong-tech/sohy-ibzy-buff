@@ -526,6 +526,10 @@ function renderHome(){
       <div class="stat3"><div class="n">${streak}<small>${streak===1?'day':'days'}</small></div><div class="l">streak</div></div>
       <button class="stat3" onclick="show('dash')"><div class="n">${passed}</div><div class="l">lessons passed</div></button>
     </div>
+    <button class="feat-card" onclick="show('acct');window.scrollTo(0,0)">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 19h0"/></svg></span>
+      <span class="tx"><b>Accounting 101</b><span>Read financial statements from scratch, with the interactive sandbox.</span></span>
+      <span class="go">Open →</span></button>
     <div class="sec-h"><h3>Your modules</h3><a href="#" id="home-all">See all ${tracks.length}</a></div>
     <div class="list">${tracks.map(T=>{ const st=trackStat(T); const pct=st.n?Math.round(st.r/st.n*100):0;
       return `<button class="list-row" onclick="openTrack('${T.id}')"><div style="flex:1;min-width:0">
@@ -1695,21 +1699,26 @@ const lessonQuizPool = L => MCQS.filter(m=>m.l===L.id);
 function setLast(L){ LS.set(LAST_KEY,{lesson:L.id, ts:Date.now()}); }
 
 /* ---- shared card component (Learn lessons, Browse, search) ---- */
+const READ_TAG=`<button class="read-tag" title="Mark as unread" aria-label="Read. Tap to mark as unread"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Read</button>`;
 function cardHTML(c, opts={}){
   const read=isRead(c.id), note=NOTES[c.id]||'';
   const L=LESSON_OF[c.id];
   return `<div class="qcard${read?' is-read':''}" data-id="${esc(c.id)}">
     <div class="qcard-head" role="button" tabindex="0" aria-expanded="false">
-      ${opts.num?`<span class="qnum">${opts.num}</span>`:''}
-      <span class="qtext">${esc(c.prompt)}${note?'<span class="note-dot" title="You have a note on this card">✎</span>':''}</span>
-      ${read?`<button class="read-tag" title="Tap to mark as unread">Read</button>`
-            :`<label class="read-box" title="Mark as read"><input type="checkbox"><span>Mark as read</span></label>`}
+      ${opts.num?`<span class="qnum">${String(opts.num).padStart(2,'0')}</span>`:''}
+      <span class="qtext">${esc(c.prompt)}${note?'<span class="note-dot" title="You have a note on this card" aria-label="Has a note"></span>':''}</span>
+      <span class="pg">p. ${c.page||'—'}</span>
+      <span class="tagslot">${read?READ_TAG:''}</span>
     </div>
     <div class="qcard-body" hidden>
       <div class="answer-body">${c.answer||''}</div>
-      <div class="qcard-meta">${opts.showLesson&&L?`<a href="#" class="go-lesson" data-l="${L.id}">${esc(L.track.title)} · Lesson ${L.n}: ${esc(L.title)}</a> · `:''}<span>Red Book p. ${c.page||'—'}</span></div>
-      <label class="fld" style="margin-top:12px">Your notes</label>
-      <textarea class="qnote" placeholder="Anything you want to remember — saves automatically">${esc(note)}</textarea>
+      ${opts.showLesson&&L?`<div class="qcard-meta"><a href="#" class="go-lesson" data-l="${L.id}">${esc(L.track.title)} · Lesson ${L.n}: ${esc(L.title)}</a></div>`:''}
+      <div class="qnote-wrap"${note?'':' hidden'}><label class="fld">Your notes</label>
+      <textarea class="qnote" placeholder="Anything you want to remember. Saves automatically.">${esc(note)}</textarea></div>
+      <div class="qcard-foot">
+        <label class="read-box"><input type="checkbox"${read?' checked':''}><span>Mark as read</span></label>
+        <button class="btn small ghost note-btn"${note?' hidden':''}>Add note</button>
+      </div>
     </div>
   </div>`;
 }
@@ -1717,21 +1726,18 @@ function bindCards(root, onReadChange){
   root.querySelectorAll('.qcard').forEach(card=>{
     const id=card.dataset.id, head=card.querySelector('.qcard-head'), body=card.querySelector('.qcard-body');
     const toggle=()=>{ body.hidden=!body.hidden; head.setAttribute('aria-expanded',!body.hidden); card.classList.toggle('open',!body.hidden); };
-    head.addEventListener('click',e=>{ if(e.target.closest('.read-box,.read-tag')) return; toggle(); });
+    head.addEventListener('click',e=>{ if(e.target.closest('.read-tag')) return; toggle(); });
     head.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&e.target===head){ e.preventDefault(); toggle(); } });
-    const swap=(on)=>{ setRead(id,on);
-      const old=card.querySelector('.read-box,.read-tag');
-      const tmp=document.createElement('div');
-      tmp.innerHTML=on?`<button class="read-tag" title="Tap to mark as unread">Read</button>`
-                     :`<label class="read-box" title="Mark as read"><input type="checkbox"><span>Mark as read</span></label>`;
-      old.replaceWith(tmp.firstChild); card.classList.toggle('is-read',on); wire(); if(onReadChange) onReadChange(id,on); };
-    const wire=()=>{ const box=card.querySelector('.read-box input'); if(box) box.onchange=()=>{ if(box.checked) swap(true); };
-      const tag=card.querySelector('.read-tag'); if(tag) tag.onclick=(e)=>{ e.stopPropagation(); swap(false); }; };
-    wire();
-    const ta=card.querySelector('.qnote');
+    const box=card.querySelector('.read-box input'), slot=card.querySelector('.tagslot');
+    const swap=(on)=>{ setRead(id,on); box.checked=on; card.classList.toggle('is-read',on);
+      slot.innerHTML=on?READ_TAG:''; wireTag(); if(onReadChange) onReadChange(id,on); };
+    const wireTag=()=>{ const tag=slot.querySelector('.read-tag'); if(tag) tag.onclick=(e)=>{ e.stopPropagation(); swap(false); }; };
+    box.onchange=()=>swap(box.checked); wireTag();
+    const nb=card.querySelector('.note-btn'), nw=card.querySelector('.qnote-wrap'), ta=card.querySelector('.qnote');
+    nb.onclick=()=>{ nw.hidden=false; nb.hidden=true; ta.focus(); };
     ta.addEventListener('input',()=>{ saveNote(id,ta.value);
       const qt=card.querySelector('.qtext'); const dot=qt.querySelector('.note-dot');
-      if(ta.value.trim()&&!dot) qt.insertAdjacentHTML('beforeend','<span class="note-dot" title="You have a note on this card">✎</span>');
+      if(ta.value.trim()&&!dot) qt.insertAdjacentHTML('beforeend','<span class="note-dot" title="You have a note on this card" aria-label="Has a note"></span>');
       if(!ta.value.trim()&&dot) dot.remove(); });
     const gl=card.querySelector('.go-lesson'); if(gl) gl.onclick=e=>{ e.preventDefault(); openLesson(gl.dataset.l, id); };
   });
@@ -1808,6 +1814,10 @@ function learnHome(el){
     <input type="search" id="learn-search" placeholder="Search all ${totalCards} cards…" autocomplete="off">
     <div id="learn-results"></div>
     <div id="learn-main">
+    <button class="feat-card" onclick="show('acct');window.scrollTo(0,0)">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 19h0"/></svg></span>
+      <span class="tx"><b>Accounting 101</b><span>Read financial statements from scratch, with the interactive sandbox.</span></span>
+      <span class="go">Open →</span></button>
     ${next?`<div class="card continue-card">
       <div class="row" style="justify-content:space-between;align-items:center;gap:14px;flex-wrap:nowrap">
         <div style="min-width:0">
@@ -1819,7 +1829,7 @@ function learnHome(el){
       </div></div>`:''}
     <div class="row" style="justify-content:space-between;align-items:center;margin:20px 2px 2px"><h3 style="margin:0">Modules</h3>
       <span class="row" style="gap:10px;align-items:center"><span class="muted" style="font-size:12px">${readCards}/${totalCards} cards read</span>
-      <button class="btn small" id="lh-acct">Accounting 101 sandbox</button><button class="btn small" id="lh-all">All cards</button></span></div>
+      <button class="btn small" id="lh-all">All cards</button></span></div>
     <div class="learn-grid">${TRACKS.map((T,i)=>{ const st=trackStat(T); const frac=st.n?st.r/st.n:0;
       return `<div class="learn-card module-card" role="button" tabindex="0" onclick="openTrack('${T.id}')" onkeydown="if(event.key==='Enter')openTrack('${T.id}')">
         <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap;gap:10px">
@@ -1832,7 +1842,6 @@ function learnHome(el){
         ${st.lessons?`<div class="mini-bubs">${T.units.filter(U=>U.lessons&&U.lessons.length).map(U=>bubbleRow(U,true,true)).join('')}</div>`:''}
       </div>`; }).join('')}</div>
     </div>`;
-  $('#lh-acct').onclick=()=>{ show('acct'); window.scrollTo(0,0); };
   $('#lh-all').onclick=()=>{ learnNav={screen:'all'}; renderLearn(); window.scrollTo(0,0); };
   const inp=$('#learn-search'); let t=null;
   inp.oninput=()=>{ clearTimeout(t); t=setTimeout(()=>searchCards(inp.value),150); };
@@ -1881,28 +1890,33 @@ function learnLesson(el){
   const idx=LESSONS.indexOf(L), prev=LESSONS[idx-1], next=LESSONS[idx+1];
   const sameTrack = x => x && x.track===L.track;
   const lq=LS.get(LQ_KEY,null), resumable = lq && lq.l===L.id && lq.idx<lq.pool.length;
-  el.innerHTML=`<div class="crumbs"><a href="#" id="ll-track">← ${esc(L.track.title)}</a></div>
-    <div class="card lesson-head">
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <span class="pill">${esc(L.unit.title)}</span>
-        <span class="muted" style="font-size:12px">Red Book pp. ${esc(L.pages)}</span>
-      </div>
-      <h2 class="serif" style="margin:10px 0 4px">Lesson ${L.n} · ${esc(L.title)}</h2>
-      <p class="muted" style="font-size:13px;margin:0">Open each card, read the answer, then tick <b>Mark as read</b>. Once every card is ticked, the lesson quiz unlocks.</p>
-      <div class="row" style="margin-top:12px;gap:6px"><button class="btn small" id="ll-open">Expand all</button><button class="btn small" id="ll-close">Collapse all</button></div>
+  const ui=L.track.units.indexOf(L.unit)+1;
+  el.innerHTML=`<div class="ll-top">
+      <button class="icon-btn" id="ll-track" aria-label="Back to ${esc(L.track.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="ll-crumb">${esc(L.track.title)} · Unit ${ui} · Lesson ${L.n}<small>${esc(L.unit.title)} · Red Book pp. ${esc(L.pages)}</small></div>
     </div>
+    <h2 class="ll-title">${esc(L.title)}</h2>
+    <div class="ll-prog"><div class="bar"><i id="ll-pbar"></i></div><span id="ll-pcount"></span></div>
+    <div class="ll-tools"><span class="muted" id="ll-hint">Open a card, read it, then tick <b>Mark as read</b>.</span>
+      <span><button class="linkbtn" id="ll-open">Expand all</button><button class="linkbtn" id="ll-close">Collapse all</button></span></div>
     <div id="ll-cards">${L.cards.map((c,i)=>cardHTML(CARD[c.id]||c,{num:i+1})).join('')}</div>
-    <div class="lesson-bar" id="ll-bar"></div>
-    <div class="row" style="justify-content:space-between;margin-top:14px">
+    <div class="ll-nav">
       ${prev?`<button class="btn" onclick="openLesson('${prev.id}')">← ${sameTrack(prev)?'Lesson '+prev.n:esc(prev.track.title)}</button>`:'<span></span>'}
       ${next?`<button class="btn" onclick="openLesson('${next.id}')">${sameTrack(next)?'Lesson '+next.n:esc(next.track.title)} →</button>`:''}
-    </div>`;
-  const paintBar=()=>{ const s=lessonStat(L); const pct=Math.round(s.r/s.n*100);
-    $('#ll-bar').innerHTML=`<div class="lb-info"><div class="lb-count"><b>${s.r}/${s.n}</b> read${s.best!==null?` · best quiz ${s.best}/10`:''}</div>
-        <div class="bar" style="margin:6px 0 0"><i style="width:${pct}%"></i></div></div>
-      ${!s.quiz?(s.unlocked?`<span class="lb-done">✓ Lesson complete</span>`:`<span class="muted" style="font-size:12.5px;white-space:nowrap">Read every card to complete</span>`)
-       :s.unlocked?`<button class="btn primary" id="ll-quiz">${resumable?'Resume quiz':s.passed?'Retake quiz':'Take the lesson quiz'} →</button>`
-        :`<button class="btn" disabled title="Mark every card as read to unlock">🔒 Quiz locked</button>`}`;
+    </div>
+    <div class="lesson-bar" id="ll-bar"></div>`;
+  const LOCK='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  const paintBar=()=>{ const s=lessonStat(L); const pct=Math.round(s.r/s.n*100), left=s.n-s.r;
+    $('#ll-pbar').style.width=pct+'%'; $('#ll-pcount').textContent=`${s.r} of ${s.n} read`;
+    $('#ll-hint').hidden = s.r>0;
+    const title = s.quiz ? 'Lesson quiz' : 'Lesson progress';
+    const sub = !s.quiz ? (s.unlocked?'Every card read':'Read every card to complete')
+      : s.unlocked ? (s.best!==null?`Best score ${s.best}/10 · pass is 8`:'Unlocked · 10 questions, pass is 8')
+      : `Unlocks when all ${s.n} cards are read`;
+    $('#ll-bar').innerHTML=`<div class="lb-info"><b>${title}</b><span>${sub}</span></div>
+      ${!s.quiz ? (s.unlocked?`<span class="lb-done">Lesson complete</span>`:`<span class="lb-lock">${LOCK}${left} to go</span>`)
+       : s.unlocked ? `<button class="btn primary" id="ll-quiz">${resumable?'Resume quiz':s.passed?'Retake quiz':'Take quiz'} →</button>`
+       : `<span class="lb-lock" title="Mark every card as read to unlock">${LOCK}${left} to go</span>`}`;
     const qb=$('#ll-quiz'); if(qb) qb.onclick=()=>startLessonQuiz(L, resumable); };
   paintBar();
   bindCards($('#ll-cards'), (id,on)=>{ const before=lessonStat(L); paintBar();
